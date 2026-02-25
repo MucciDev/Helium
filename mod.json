@@ -11,5 +11,6 @@
     "version": "v1.0.0",
     "developer": "akaMelom",
     "description": "GD Sodium",
-    "early-load": true
+    "early-load": true,
+    "tags": [ "offline", "performance" ]
 }
