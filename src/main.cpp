@@ -191,7 +191,7 @@ class $modify(OptimizedPlayLayer, PlayLayer) {
 $on_mod(Loaded) {
     #ifdef GEODE_IS_WINDOWS
     HANDLE hProcess = GetCurrentProcess();
-    SetPriorityClass(hProcess, REALTIME_PRIORITY_CLASS);
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+    SetPriorityClass(hProcess, HIGH_PRIORITY_CLASS);
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
     #endif
 }
