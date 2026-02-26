@@ -1,34 +1,48 @@
 cmake_minimum_required(VERSION 3.21)
 
-# Geode v5 utilizes modern C++ (C++20/C++23)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Architecture target setup for Mac/iOS cross-compilation
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "iOS" OR IOS)
-    set(CMAKE_OSX_ARCHITECTURES "arm64")
-else()
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64")
-endif()
-
+# Hides internal symbols, shrinking the final binary size
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 project(Helium VERSION 1.0.0)
 
-# Gather all your source files
+# Gather all source files
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
-
-# Create the mod library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
-# THE CRITICAL PART: Properly hook into the Geode CLI's pre-compiled cache
+# Hook into the Geode CLI
 if (NOT DEFINED ENV{GEODE_SDK})
-    message(FATAL_ERROR "Unable to find Geode SDK! Please define GEODE_SDK environment variable to point to Geode")
+    message(FATAL_ERROR "Unable to find Geode SDK! Please define GEODE_SDK environment variable.")
 else()
     message(STATUS "Found Geode: $ENV{GEODE_SDK}")
 endif()
 
 add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
-
-# Let Geode handle the final bindings, resources, and hooks
 setup_geode_mod(${PROJECT_NAME})
+
+# ==========================================
+# COMPILER OPTIMIZATIONS
+# ==========================================
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    message(STATUS "[Helium] Injecting Windows/MSVC Extreme Performance Flags...")
+    
+    # /O2: Maximize Execution Speed
+    # /Ob2: Aggressive Inlining (Safe level, no LTO required)
+    # /Oi: Hardware Intrinsics (Bypass standard C library for raw math)
+    # /Ot: Favor Fast Code
+    # /fp:fast: Optimize floating point operations for speed
+    # /arch:AVX2: Utilize Advanced Vector Extensions for CPU matrix processing
+    # /Zc:inline: Removes unreferenced functions from translation units
+    target_compile_options(${PROJECT_NAME} PRIVATE 
+        /O2 /Ob2 /Oi /Ot /fp:fast /arch:AVX2 /Zc:inline
+    )
+    
+    # REMOVED: /GL (Whole Program Optimization) and /LTCG (Link-Time Code Generation)
+    # Why? They attempt to cross-optimize Geometry Dash's mobile-only functions 
+    # (like ads) which do not exist in the PC executable, causing LNK2001 crashes.
+    
+    # Keep identical function folding to reduce file size safely
+    target_link_options(${PROJECT_NAME} PRIVATE /OPT:REF /OPT:ICF)
+endif()
