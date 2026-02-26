@@ -1,15 +1,15 @@
 # Helium 🎈
 
-Helium makes Geometry Dash boot and run faster by fixing engine bottlenecks and hijacking system priority.
+Helium is a high-performance core utility for Geometry Dash that (tries to) eliminates engine-level bottlenecks and redundant CPU calculations without compromising game stability.
 
 ## Features
 
-* **Hyper-Boot:** Speeds up asset loading by using 16-bit texture compression during startup.
-* **Async Load:** Loads save files in the background so you reach the Main Menu instantly.
-* **Zero-Frame Boot:** Removes frame caps and hides the loading screen to finish startup as fast as your CPU allows.
-* **OS Hijack:** Sets Geometry Dash to "Realtime" priority on Windows to maximize raw power.
-* **Fast Parsing:** Replaces ancient, slow string formatting with modern C++ logic.
+* **Zero-Allocation Logic:** Rewrites Cocos2d-x string formatting and file I/O to use stack memory, bypassing the slow system heap.
+* **Intelligent Culling:** Automatically skips draw calls for invisible sprites and physics updates for inactive particle systems.
+* **State-Change Optimization:** Prevents the CPU from recalculating math for objects, labels, and shaders that haven't changed.
+* **Hyper-Boot:** Unlocks the engine framerate during startup and defers VRAM cleanup until the menu is reached.
+* **Hardware Priority:** Configures the Windows scheduler to prioritize the game process for maximum resource access.
 
-## Performance
-* **Efficiency Gain:** ~15% faster boot times.
-* **Record Time:** 4.84 seconds (with a 35-mod load order).
+## Technical Improvements
+* **Memory:** Massive reduction in heap allocations during UI rendering.
+* **Rendering:** Lower CPU overhead on object-heavy levels via redundant state culling.
