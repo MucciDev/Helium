@@ -26,7 +26,7 @@ setup_geode_mod(${PROJECT_NAME})
 # COMPILER OPTIMIZATIONS
 # ==========================================
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    message(STATUS "[Helium] Injecting Windows/MSVC Extreme Performance Flags...")
+    message(STATUS "[Helium] Injecting Windows/MSVC Performance Flags...")
     
     # /O2: Maximize Execution Speed
     # /Ob2: Aggressive Inlining (Safe level, no LTO required)
@@ -39,10 +39,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         /O2 /Ob2 /Oi /Ot /fp:fast /arch:AVX2 /Zc:inline
     )
     
-    # REMOVED: /GL (Whole Program Optimization) and /LTCG (Link-Time Code Generation)
-    # Why? They attempt to cross-optimize Geometry Dash's mobile-only functions 
-    # (like ads) which do not exist in the PC executable, causing LNK2001 crashes.
-    
     # Keep identical function folding to reduce file size safely
     target_link_options(${PROJECT_NAME} PRIVATE /OPT:REF /OPT:ICF)
 endif()
+
