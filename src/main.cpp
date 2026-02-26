@@ -1,12 +1,10 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/GameManager.hpp>
-#include <Geode/modify/LocalLevelManager.hpp>
 #include <Geode/modify/ShaderLayer.hpp>
 #include <Geode/modify/CCFileUtils.hpp>
 #include <Geode/modify/LoadingLayer.hpp>
 #include <Geode/modify/MenuLayer.hpp>
 #include <Geode/modify/CCParticleSystemQuad.hpp>
-#include <Geode/modify/CreatorLayer.hpp>
 #include <Geode/modify/CCLabelBMFont.hpp>
 #include <Geode/modify/CCSprite.hpp>
 #include <Geode/modify/CCTextureCache.hpp>
@@ -25,11 +23,10 @@ using namespace geode::prelude;
 // ==========================================
 // CORE STATE
 // ==========================================
-bool g_localLevelsLoaded = false;
 std::chrono::steady_clock::time_point g_bootStartTime;
 
 // ==========================================
-// ALLOCATION-FREE STRING FORMATTING
+// 1. ALLOCATION-FREE STRING FORMATTING
 // ==========================================
 bool fastFormatHook(cocos2d::CCString* self, const char* format, va_list ap) {
     thread_local char stackBuffer[4096];
@@ -68,7 +65,7 @@ $execute {
 }
 
 // ==========================================
-// ULTRA-FAST I/O CACHE
+// 2. ULTRA-FAST I/O CACHE
 // ==========================================
 class $modify(OptimizedFileUtils, CCFileUtils) {
     gd::string fullPathForFilename(const char* pszFileName, bool bResolutionDirectory) {
@@ -91,27 +88,7 @@ class $modify(OptimizedFileUtils, CCFileUtils) {
 };
 
 // ==========================================
-// DEFERRED DATA LOADING
-// ==========================================
-class $modify(DeferredLocalLevel, LocalLevelManager) {
-    void loadDataFromFile(gd::string const& filename) {
-        if (filename == "CCLocalLevels.dat" && !g_localLevelsLoaded) return;
-        LocalLevelManager::loadDataFromFile(filename);
-    }
-};
-
-class $modify(DeferredCreatorLayer, CreatorLayer) {
-    bool init() {
-        if (!g_localLevelsLoaded) {
-            g_localLevelsLoaded = true;
-            LocalLevelManager::sharedState()->loadDataFromFile("CCLocalLevels.dat");
-        }
-        return CreatorLayer::init();
-    }
-};
-
-// ==========================================
-// GPU DRAW CALL & OPACITY CULLING
+// 3. GPU DRAW CALL & OPACITY CULLING
 // ==========================================
 class $modify(OptimizedSprite, CCSprite) {
     void draw() {
@@ -126,7 +103,7 @@ class $modify(OptimizedSprite, CCSprite) {
 };
 
 // ==========================================
-// GEOMETRY REBUILD CULLING
+// 4. GEOMETRY REBUILD CULLING
 // ==========================================
 class $modify(OptimizedLabel, CCLabelBMFont) {
     void setString(const char* newString) {
@@ -140,7 +117,7 @@ class $modify(OptimizedLabel, CCLabelBMFont) {
 };
 
 // ==========================================
-// PHYSICS CULLING
+// 5. PHYSICS CULLING
 // ==========================================
 class $modify(OptimizedParticles, CCParticleSystemQuad) {
     void update(float dt) {
@@ -150,7 +127,7 @@ class $modify(OptimizedParticles, CCParticleSystemQuad) {
 };
 
 // ==========================================
-// FAST BOOT & VRAM GARBAGE COLLECTION
+// 6. FAST BOOT & VRAM GARBAGE COLLECTION
 // ==========================================
 class $modify(FastBootLoadingLayer, LoadingLayer) {
     bool init(bool fromReload) {
@@ -166,7 +143,6 @@ class $modify(FastBootMenuLayer, MenuLayer) {
     bool init() {
         if (!MenuLayer::init()) return false;
         
-        // This static flag ensures the stopwatch and VRAM flush only execute ONCE.
         static bool s_firstBoot = true;
         if (s_firstBoot) {
             s_firstBoot = false;
@@ -177,7 +153,6 @@ class $modify(FastBootMenuLayer, MenuLayer) {
             cocos2d::CCTextureCache::sharedTextureCache()->removeUnusedTextures();
         }
 
-        // We still want to restore user FPS/VSync settings every time just to be safe
         auto gm = GameManager::sharedState();
         if (gm->getGameVariable("0030")) CCApplication::sharedApplication()->toggleVerticalSync(true);
         float targetFPS = gm->m_customFPSTarget == 0 ? 60.0f : gm->m_customFPSTarget;
@@ -187,7 +162,7 @@ class $modify(FastBootMenuLayer, MenuLayer) {
 };
 
 // ==========================================
-// SHADER CACHE
+// 7. SHADER CACHE
 // ==========================================
 class $modify(OptimizedShaderLayer, ShaderLayer) {
     void setupShader(bool shouldReset) {
@@ -197,7 +172,7 @@ class $modify(OptimizedShaderLayer, ShaderLayer) {
 };
 
 // ==========================================
-// OS HARDWARE PRIORITY
+// 8. OS HARDWARE PRIORITY
 // ==========================================
 $on_mod(Loaded) {
 #ifdef GEODE_IS_WINDOWS
