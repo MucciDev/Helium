@@ -26,7 +26,7 @@ using namespace geode::prelude;
 std::chrono::steady_clock::time_point g_bootStartTime;
 
 // ==========================================
-// 1. ALLOCATION-FREE STRING FORMATTING
+// ALLOCATION-FREE STRING FORMATTING
 // ==========================================
 bool fastFormatHook(cocos2d::CCString* self, const char* format, va_list ap) {
     thread_local char stackBuffer[4096];
@@ -65,7 +65,7 @@ $execute {
 }
 
 // ==========================================
-// 2. ULTRA-FAST I/O CACHE
+// ULTRA-FAST I/O CACHE
 // ==========================================
 class $modify(OptimizedFileUtils, CCFileUtils) {
     gd::string fullPathForFilename(const char* pszFileName, bool bResolutionDirectory) {
@@ -88,7 +88,7 @@ class $modify(OptimizedFileUtils, CCFileUtils) {
 };
 
 // ==========================================
-// 3. GPU DRAW CALL & OPACITY CULLING
+// GPU DRAW CALL & OPACITY CULLING
 // ==========================================
 class $modify(OptimizedSprite, CCSprite) {
     void draw() {
@@ -103,7 +103,7 @@ class $modify(OptimizedSprite, CCSprite) {
 };
 
 // ==========================================
-// 4. GEOMETRY REBUILD CULLING
+// GEOMETRY REBUILD CULLING
 // ==========================================
 class $modify(OptimizedLabel, CCLabelBMFont) {
     void setString(const char* newString) {
@@ -117,7 +117,7 @@ class $modify(OptimizedLabel, CCLabelBMFont) {
 };
 
 // ==========================================
-// 5. PHYSICS CULLING
+// PHYSICS CULLING
 // ==========================================
 class $modify(OptimizedParticles, CCParticleSystemQuad) {
     void update(float dt) {
@@ -127,7 +127,7 @@ class $modify(OptimizedParticles, CCParticleSystemQuad) {
 };
 
 // ==========================================
-// 6. FAST BOOT & VRAM GARBAGE COLLECTION
+// FAST BOOT & VRAM GARBAGE COLLECTION
 // ==========================================
 class $modify(FastBootLoadingLayer, LoadingLayer) {
     bool init(bool fromReload) {
@@ -162,7 +162,7 @@ class $modify(FastBootMenuLayer, MenuLayer) {
 };
 
 // ==========================================
-// 7. SHADER CACHE
+// SHADER CACHE
 // ==========================================
 class $modify(OptimizedShaderLayer, ShaderLayer) {
     void setupShader(bool shouldReset) {
@@ -172,7 +172,7 @@ class $modify(OptimizedShaderLayer, ShaderLayer) {
 };
 
 // ==========================================
-// 8. OS HARDWARE PRIORITY
+// OS HARDWARE PRIORITY
 // ==========================================
 $on_mod(Loaded) {
 #ifdef GEODE_IS_WINDOWS
@@ -180,3 +180,4 @@ $on_mod(Loaded) {
     SetProcessPriorityBoost(GetCurrentProcess(), FALSE); 
 #endif
 }
+
