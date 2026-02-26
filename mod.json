@@ -5,10 +5,9 @@
     },
     "id": "akamelom.helium",
     "name": "Helium",
-    "version": "v2.0.0",
+    "version": "v2.1.0",
     "developer": "akaMelom",
-    "description": "GD Sodium",
+    "description": "engine optimization and performance enhancements mod",
     "early-load": true,
     "tags": [ "offline", "performance" ]
 }
-
