@@ -1,10 +1,24 @@
 # Changelog
 
+## [v2.2.0]
+
+### Added
+- Added a new `Enable High Process Priority` toggle in the mod settings. You can now opt-in to forcing Geometry Dash to use more CPU cycles on Windows (disabled by default to prevent Discord/OBS lag on weaker PCs).
+
+### Changed
+- Shifted the compiler vector optimization from AVX2 down to SSE2. This maintains high-speed matrix math while restoring compatibility for older Intel and AMD processors.
+
+### Fixed
+- **Instant Crash Fix:** Fixed an `0xC000001D` crash on launch for players running on older hardware.
+- **Level Sync Fix:** Fixed a severe bug where particles with 0 opacity would stop calculating their physics, causing them to freeze in time and break custom level visuals. 
+- **Texture Pack Fix:** Fixed a bug where the I/O cache permanently remembered old files. Texture packs and dynamically loaded mod sprites will now reload perfectly without needing to restart the game.
+- **GPU Burnout Fix:** Removed a bug in the fast-boot loading screen that could accidentally force the game to run at infinite FPS, maxing out GPU usage if the main menu failed to load.
+
 ## [v2.1.1]
 ### Fixed
-* **Phantom Revisions (REV +1 Bug):** Fixed a critical save-data bug where the engine would automatically increment the revision counter on created levels.
+* **Phantom Revisions (REV +1 Bug):** Fixed a critical save-data bug where the engine would automatically increment the revision counter on created levels (tricking the game into thinking they were restored from backups).
 ### Removed
-* **Deferred Level Loading:** Completely removed the `LocalLevelManager` delayed boot hook to ensure save data integrity and prevent the REV bug.
+* **Deferred Level Loading:** Completely removed the `LocalLevelManager` delayed boot hook to ensure 100% save data integrity and prevent the REV bug.
 
 ## [v2.1.0]
 ### Fixed
