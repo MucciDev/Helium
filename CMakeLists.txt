@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Hides internal symbols, shrinking the final binary size
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
-project(Helium VERSION 1.0.0)
+project(Helium VERSION 2.2.0)
 
 # Gather all source files
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
@@ -33,13 +33,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     # /Oi: Hardware Intrinsics (Bypass standard C library for raw math)
     # /Ot: Favor Fast Code
     # /fp:fast: Optimize floating point operations for speed
-    # /arch:AVX2: Utilize Advanced Vector Extensions for CPU matrix processing
+    # /arch:SSE2: Safe, universally supported matrix math acceleration (Replaced AVX2)
     # /Zc:inline: Removes unreferenced functions from translation units
     target_compile_options(${PROJECT_NAME} PRIVATE 
-        /O2 /Ob2 /Oi /Ot /fp:fast /arch:AVX2 /Zc:inline
+        /O2 /Ob2 /Oi /Ot /fp:fast /arch:SSE2 /Zc:inline
     )
     
     # Keep identical function folding to reduce file size safely
     target_link_options(${PROJECT_NAME} PRIVATE /OPT:REF /OPT:ICF)
 endif()
-
