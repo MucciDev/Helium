@@ -67,23 +67,31 @@ $execute {
 // ==========================================
 // ULTRA-FAST I/O CACHE
 // ==========================================
+// Moved to global scope so we can clear it safely
+thread_local std::unordered_map<std::string, gd::string> g_tls_pathCache;
+
 class $modify(OptimizedFileUtils, CCFileUtils) {
     gd::string fullPathForFilename(const char* pszFileName, bool bResolutionDirectory) {
         if (!pszFileName || pszFileName[0] == '\0') return "";
         
-        thread_local std::unordered_map<std::string, gd::string> tls_pathCache;
         thread_local std::string tls_keyBuffer;
         
         tls_keyBuffer.clear();
         tls_keyBuffer.append(pszFileName);
         tls_keyBuffer.push_back(bResolutionDirectory ? '1' : '0');
         
-        auto it = tls_pathCache.find(tls_keyBuffer);
-        if (it != tls_pathCache.end()) return it->second;
+        auto it = g_tls_pathCache.find(tls_keyBuffer);
+        if (it != g_tls_pathCache.end()) return it->second;
 
         gd::string result = CCFileUtils::fullPathForFilename(pszFileName, bResolutionDirectory);
-        tls_pathCache.emplace(tls_keyBuffer, result);
+        g_tls_pathCache.emplace(tls_keyBuffer, result);
         return result;
+    }
+
+    // Safely dump the cache so Texture Packs and mods can load new files
+    void purgeCachedEntries() {
+        g_tls_pathCache.clear();
+        CCFileUtils::purgeCachedEntries();
     }
 };
 
@@ -120,9 +128,10 @@ class $modify(OptimizedLabel, CCLabelBMFont) {
 // PHYSICS CULLING
 // ==========================================
 class $modify(OptimizedParticles, CCParticleSystemQuad) {
-    void update(float dt) {
+    // Intercept DRAW instead of UPDATE so physics math doesn't freeze in place
+    void draw() {
         if (this->getParticleCount() == 0 || !this->isVisible() || this->getOpacity() == 0) return;
-        CCParticleSystemQuad::update(dt);
+        CCParticleSystemQuad::draw();
     }
 };
 
@@ -132,8 +141,8 @@ class $modify(OptimizedParticles, CCParticleSystemQuad) {
 class $modify(FastBootLoadingLayer, LoadingLayer) {
     bool init(bool fromReload) {
         if (!LoadingLayer::init(fromReload)) return false;
+        // Disabled VSync to uncap loading times, but removed the 0.0f FPS trap
         CCApplication::sharedApplication()->toggleVerticalSync(false);
-        CCDirector::sharedDirector()->setAnimationInterval(0.0f);
         this->setVisible(false);
         return true;
     }
@@ -176,8 +185,10 @@ class $modify(OptimizedShaderLayer, ShaderLayer) {
 // ==========================================
 $on_mod(Loaded) {
 #ifdef GEODE_IS_WINDOWS
-    SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
-    SetProcessPriorityBoost(GetCurrentProcess(), FALSE); 
+    // Only elevate CPU priority if the user explicitly consents in settings
+    if (Mod::get()->getSettingValue<bool>("enable-high-priority")) {
+        SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+        SetProcessPriorityBoost(GetCurrentProcess(), FALSE); 
+    }
 #endif
 }
-
