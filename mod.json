@@ -5,9 +5,16 @@
     },
     "id": "akamelom.helium",
     "name": "Helium",
-    "version": "v2.1.1",
+    "version": "v2.2.0",
     "developer": "akaMelom",
-    "description": "engine optimization and performance enhancements mod",
+    "description": "Engine optimization and performance enhancements mod",
     "early-load": true,
-    "tags": [ "offline", "performance" ]
+    "tags": [ "offline", "performance" ],
+    "settings": {
+        "enable-high-priority": {
+            "type": "bool",
+            "default": false,
+            "name": "Enable High Process Priority"
+        }
+    }
 }
