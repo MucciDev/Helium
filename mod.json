@@ -1,20 +1,36 @@
 {
-    "geode": "5.0.1",
+    "geode": "5.7.1",
     "gd": {
-        "win": "2.2081"
+        "win": "2.2081",
+        "mac": "2.2081",
+        "android": "2.2081",
+        "ios": "2.2081"
     },
     "id": "akamelom.helium",
     "name": "Helium",
-    "version": "v2.2.0",
+    "version": "v2.3.0",
     "developer": "akaMelom",
     "description": "Engine optimization and performance enhancements mod",
     "early-load": true,
-    "tags": [ "offline", "performance" ],
+    "tags": [
+        "offline",
+        "performance"
+    ],
     "settings": {
         "enable-high-priority": {
             "type": "bool",
             "default": false,
             "name": "Enable High Process Priority"
+        },
+        "enable-offscreen-culling": {
+            "type": "bool",
+            "default": true,
+            "name": "Enable Offscreen Culling"
+        },
+        "disable-loading-screen": {
+            "type": "bool",
+            "default": true,
+            "name": "Disable Loading Screen"
         }
     }
 }

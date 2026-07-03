@@ -12,6 +12,8 @@ Helium eliminates the "disk-fighting" common in heavily modded setups by caching
 * **Shader Caching:** Prevents redundant OpenGL shader recompiles, ensuring faster transitions between layers.
 * **State Culling:** Helium intercepts sprite and particle updates to skip physics and draw calls for objects that are invisible or have 0% opacity.
 * **Geometry Guard:** Stops the engine from rebuilding text vertex arrays if the string content hasn't changed.
+* **Batch Node Preallocation:** Mitigates massive memory reallocation freezes when loading huge levels by forcing higher initial memory capacities for sprite batch nodes.
+* **Background Throttling:** Safely limits the game to 5 FPS when minimized (Alt-Tab) to reduce CPU and GPU usage on the host machine.
 
 ### Hardware Utilization
 During the boot sequence, Helium unlocks the engine framerate to finish initialization routines as fast as your CPU allows. It also sets the process priority to "High" on Windows, ensuring the OS treats Geometry Dash as the primary workload.

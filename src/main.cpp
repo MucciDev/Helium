@@ -1,18 +1,22 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/GameManager.hpp>
-#include <Geode/modify/ShaderLayer.hpp>
+#include <Geode/modify/AppDelegate.hpp>
 #include <Geode/modify/CCFileUtils.hpp>
+#include <Geode/modify/CCLabelBMFont.hpp>
+#include <Geode/modify/CCParticleSystemQuad.hpp>
+#include <Geode/modify/CCSprite.hpp>
+#include <Geode/modify/CCSpriteBatchNode.hpp>
+#include <Geode/modify/CCTextureCache.hpp>
+#include <Geode/modify/GameManager.hpp>
 #include <Geode/modify/LoadingLayer.hpp>
 #include <Geode/modify/MenuLayer.hpp>
-#include <Geode/modify/CCParticleSystemQuad.hpp>
-#include <Geode/modify/CCLabelBMFont.hpp>
-#include <Geode/modify/CCSprite.hpp>
-#include <Geode/modify/CCTextureCache.hpp>
+#include <Geode/modify/ShaderLayer.hpp>
+
 
 #include <chrono>
-#include <unordered_map>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+
 
 #ifdef GEODE_IS_WINDOWS
 #include <windows.h>
@@ -24,43 +28,64 @@ using namespace geode::prelude;
 // CORE STATE
 // ==========================================
 std::chrono::steady_clock::time_point g_bootStartTime;
+bool g_enableOffscreenCulling = true;
+bool g_disableLoadingScreen = true;
+
+static bool isNodeVisibleOnscreen(cocos2d::CCNode* node) {
+  if (!g_enableOffscreenCulling) {
+    return true;
+  }
+
+  auto director = cocos2d::CCDirector::sharedDirector();
+  if (!director) {
+    return true;
+  }
+
+  auto origin = director->getVisibleOrigin();
+  auto size = director->getVisibleSize();
+  cocos2d::CCRect visibleRect(origin.x, origin.y, size.width, size.height);
+  return node->boundingBox().intersectsRect(visibleRect);
+}
 
 // ==========================================
 // ALLOCATION-FREE STRING FORMATTING
 // ==========================================
-bool fastFormatHook(cocos2d::CCString* self, const char* format, va_list ap) {
-    thread_local char stackBuffer[4096];
-    
-    va_list ap_copy;
-    va_copy(ap_copy, ap);
-    int len = std::vsnprintf(stackBuffer, sizeof(stackBuffer), format, ap_copy);
-    va_end(ap_copy);
-    
-    if (len >= 0 && len < sizeof(stackBuffer)) {
-        self->m_sString.assign(stackBuffer, len);
-        return true;
-    }
-    
-    std::string str(len + 1, '\0');
-    std::vsnprintf(str.data(), str.size(), format, ap);
-    str.resize(len); 
-    self->m_sString = str;
+bool fastFormatHook(cocos2d::CCString *self, const char *format, va_list ap) {
+#ifdef GEODE_IS_WINDOWS
+  thread_local char stackBuffer[4096];
+
+  va_list ap_copy;
+  va_copy(ap_copy, ap);
+  int len = std::vsnprintf(stackBuffer, sizeof(stackBuffer), format, ap_copy);
+  va_end(ap_copy);
+
+  if (len >= 0 && len < sizeof(stackBuffer)) {
+    self->m_sString.assign(stackBuffer, len);
     return true;
+  }
+
+  std::string str(len + 1, '\0');
+  std::vsnprintf(str.data(), str.size(), format, ap);
+  str.resize(len);
+  self->m_sString = str;
+  return true;
+#else
+  return false;
+#endif
 }
 
 $execute {
-    g_bootStartTime = std::chrono::steady_clock::now();
-    
+  g_bootStartTime = std::chrono::steady_clock::now();
+
 #ifdef GEODE_IS_WINDOWS
-    auto addr = GetProcAddress(GetModuleHandleA("libcocos2d.dll"), "?initWithFormatAndValist@CCString@cocos2d@@AAE_NPBDPAD@Z");
-    if (addr) {
-        (void) Mod::get()->hook(
-            reinterpret_cast<void*>(addr),
-            &fastFormatHook,
-            "cocos2d::CCString::initWithFormatAndValist",
-            tulip::hook::TulipConvention::Thiscall
-        );
-    }
+  auto addr = GetProcAddress(
+      GetModuleHandleA("libcocos2d.dll"),
+      "?initWithFormatAndValist@CCString@cocos2d@@AAE_NPBDPAD@Z");
+  if (addr) {
+    (void)Mod::get()->hook(reinterpret_cast<void *>(addr), &fastFormatHook,
+                           "cocos2d::CCString::initWithFormatAndValist",
+                           tulip::hook::TulipConvention::Thiscall);
+  }
 #endif
 }
 
@@ -71,124 +96,192 @@ $execute {
 thread_local std::unordered_map<std::string, gd::string> g_tls_pathCache;
 
 class $modify(OptimizedFileUtils, CCFileUtils) {
-    gd::string fullPathForFilename(const char* pszFileName, bool bResolutionDirectory) {
-        if (!pszFileName || pszFileName[0] == '\0') return "";
-        
-        thread_local std::string tls_keyBuffer;
-        
-        tls_keyBuffer.clear();
-        tls_keyBuffer.append(pszFileName);
-        tls_keyBuffer.push_back(bResolutionDirectory ? '1' : '0');
-        
-        auto it = g_tls_pathCache.find(tls_keyBuffer);
-        if (it != g_tls_pathCache.end()) return it->second;
+  gd::string fullPathForFilename(const char *pszFileName,
+                                 bool bResolutionDirectory) {
+    if (!pszFileName || pszFileName[0] == '\0')
+      return "";
 
-        gd::string result = CCFileUtils::fullPathForFilename(pszFileName, bResolutionDirectory);
-        g_tls_pathCache.emplace(tls_keyBuffer, result);
-        return result;
-    }
+    thread_local std::string tls_keyBuffer;
 
-    // Safely dump the cache so Texture Packs and mods can load new files
-    void purgeCachedEntries() {
-        g_tls_pathCache.clear();
-        CCFileUtils::purgeCachedEntries();
-    }
+    tls_keyBuffer.clear();
+    tls_keyBuffer.append(pszFileName);
+    tls_keyBuffer.push_back(bResolutionDirectory ? '1' : '0');
+
+    auto it = g_tls_pathCache.find(tls_keyBuffer);
+    if (it != g_tls_pathCache.end())
+      return it->second;
+
+    gd::string result =
+        CCFileUtils::fullPathForFilename(pszFileName, bResolutionDirectory);
+    g_tls_pathCache.emplace(tls_keyBuffer, result);
+    return result;
+  }
+
+  // Safely dump the cache so Texture Packs and mods can load new files
+  void purgeCachedEntries() {
+    g_tls_pathCache.clear();
+    CCFileUtils::purgeCachedEntries();
+  }
 };
 
 // ==========================================
 // GPU DRAW CALL & OPACITY CULLING
 // ==========================================
 class $modify(OptimizedSprite, CCSprite) {
-    void draw() {
-        if (this->getOpacity() == 0 || !this->isVisible()) return;
-        CCSprite::draw();
-    }
-    
-    void setOpacity(GLubyte opacity) {
-        if (this->getOpacity() == opacity) return;
-        CCSprite::setOpacity(opacity);
-    }
+  void draw() {
+    if (this->getOpacity() == 0 || !this->isVisible() || !isNodeVisibleOnscreen(this))
+      return;
+    CCSprite::draw();
+  }
+
+  void setOpacity(GLubyte opacity) {
+    if (this->getOpacity() == opacity)
+      return;
+    CCSprite::setOpacity(opacity);
+  }
 };
 
 // ==========================================
 // GEOMETRY REBUILD CULLING
 // ==========================================
 class $modify(OptimizedLabel, CCLabelBMFont) {
-    void setString(const char* newString) {
-        if (newString && this->getString()) {
-            if (std::string_view(this->getString()) == newString) {
-                return;
-            }
-        }
-        CCLabelBMFont::setString(newString);
+  void draw() {
+    if (this->getOpacity() == 0 || !this->isVisible() || !isNodeVisibleOnscreen(this))
+      return;
+    CCLabelBMFont::draw();
+  }
+
+  void setString(const char *newString) {
+    if (newString && this->getString()) {
+      if (std::string_view(this->getString()) == newString) {
+        return;
+      }
     }
+    CCLabelBMFont::setString(newString);
+  }
 };
 
 // ==========================================
 // PHYSICS CULLING
 // ==========================================
 class $modify(OptimizedParticles, CCParticleSystemQuad) {
-    // Intercept DRAW instead of UPDATE so physics math doesn't freeze in place
-    void draw() {
-        if (this->getParticleCount() == 0 || !this->isVisible() || this->getOpacity() == 0) return;
-        CCParticleSystemQuad::draw();
-    }
+  // Intercept DRAW instead of UPDATE so physics math doesn't freeze in place
+  void draw() {
+    if (this->getParticleCount() == 0 || !this->isVisible() ||
+        this->getOpacity() == 0 || !isNodeVisibleOnscreen(this))
+      return;
+    CCParticleSystemQuad::draw();
+  }
 };
 
 // ==========================================
 // FAST BOOT & VRAM GARBAGE COLLECTION
 // ==========================================
 class $modify(FastBootLoadingLayer, LoadingLayer) {
-    bool init(bool fromReload) {
-        if (!LoadingLayer::init(fromReload)) return false;
-        // Disabled VSync to uncap loading times, but removed the 0.0f FPS trap
-        CCApplication::sharedApplication()->toggleVerticalSync(false);
-        this->setVisible(false);
-        return true;
+  bool init(bool fromReload) {
+    if (!LoadingLayer::init(fromReload))
+      return false;
+    // Disabled VSync to uncap loading times, but removed the 0.0f FPS trap
+#ifdef GEODE_IS_WINDOWS
+    CCApplication::sharedApplication()->toggleVerticalSync(false);
+#endif
+    if (g_disableLoadingScreen) {
+      this->setVisible(false);
     }
+    return true;
+  }
 };
 
 class $modify(FastBootMenuLayer, MenuLayer) {
-    bool init() {
-        if (!MenuLayer::init()) return false;
-        
-        static bool s_firstBoot = true;
-        if (s_firstBoot) {
-            s_firstBoot = false;
-            auto bootEndTime = std::chrono::steady_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(bootEndTime - g_bootStartTime);
-            log::info("[Helium] Engine ignited in {}ms", duration.count());
+  bool init() {
+    if (!MenuLayer::init())
+      return false;
 
-            cocos2d::CCTextureCache::sharedTextureCache()->removeUnusedTextures();
-        }
+    static bool s_firstBoot = true;
+    if (s_firstBoot) {
+      s_firstBoot = false;
+      auto bootEndTime = std::chrono::steady_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+          bootEndTime - g_bootStartTime);
+      log::info("[Helium] Engine ignited in {}ms", duration.count());
 
-        auto gm = GameManager::sharedState();
-        if (gm->getGameVariable("0030")) CCApplication::sharedApplication()->toggleVerticalSync(true);
-        float targetFPS = gm->m_customFPSTarget == 0 ? 60.0f : gm->m_customFPSTarget;
-        CCDirector::sharedDirector()->setAnimationInterval(1.0f / targetFPS);
-        return true;
+      cocos2d::CCTextureCache::sharedTextureCache()->removeUnusedTextures();
     }
+
+    auto gm = GameManager::sharedState();
+    if (gm->getGameVariable("0030")) {
+#ifdef GEODE_IS_WINDOWS
+      CCApplication::sharedApplication()->toggleVerticalSync(true);
+#endif
+    }
+    float targetFPS =
+        gm->m_customFPSTarget == 0 ? 60.0f : gm->m_customFPSTarget;
+    CCDirector::sharedDirector()->setAnimationInterval(1.0f / targetFPS);
+    return true;
+  }
 };
 
 // ==========================================
 // SHADER CACHE
 // ==========================================
 class $modify(OptimizedShaderLayer, ShaderLayer) {
-    void setupShader(bool shouldReset) {
-        if (!shouldReset && this->m_shader) return; 
-        ShaderLayer::setupShader(shouldReset);
-    }
+  void setupShader(bool shouldReset) {
+    if (!shouldReset && this->m_shader)
+      return;
+    ShaderLayer::setupShader(shouldReset);
+  }
+};
+
+// ==========================================
+// BATCH NODE PREALLOCATION (MEMORY ANTI-FRAG)
+// ==========================================
+class $modify(OptimizedBatchNode, CCSpriteBatchNode) {
+  bool initWithTexture(cocos2d::CCTexture2D *tex, unsigned int capacity) {
+    // Force higher initial capacity to prevent O(N) memory reallocations during
+    // level load
+    unsigned int optimizedCapacity = (capacity < 1000) ? 1000 : capacity;
+    return CCSpriteBatchNode::initWithTexture(tex, optimizedCapacity);
+  }
+};
+
+// ==========================================
+// BACKGROUND THROTTLING (RESOURCE SAVER)
+// ==========================================
+class $modify(OptimizedApp, AppDelegate) {
+  void applicationDidEnterBackground() {
+    AppDelegate::applicationDidEnterBackground();
+    // Drop FPS to 5 to save CPU/GPU when the game is minimized (Alt-Tab)
+    cocos2d::CCDirector::sharedDirector()->setAnimationInterval(1.0f / 5.0f);
+  }
+
+  void applicationWillEnterForeground() {
+    AppDelegate::applicationWillEnterForeground();
+    // Restore target FPS when the game is focused again
+    auto gm = GameManager::sharedState();
+    float targetFPS =
+        gm->m_customFPSTarget == 0 ? 60.0f : gm->m_customFPSTarget;
+    cocos2d::CCDirector::sharedDirector()->setAnimationInterval(1.0f /
+                                                                targetFPS);
+  }
 };
 
 // ==========================================
 // OS HARDWARE PRIORITY
 // ==========================================
 $on_mod(Loaded) {
+  g_enableOffscreenCulling = Mod::get()->getSettingValue<bool>("enable-offscreen-culling");
+  g_disableLoadingScreen = Mod::get()->getSettingValue<bool>("disable-loading-screen");
+
 #ifdef GEODE_IS_WINDOWS
-    // Only elevate CPU priority if the user explicitly consents in settings
-    if (Mod::get()->getSettingValue<bool>("enable-high-priority")) {
-        SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
-        SetProcessPriorityBoost(GetCurrentProcess(), FALSE); 
-    }
+  // Only elevate CPU priority if the user explicitly consents in settings
+  if (Mod::get()->getSettingValue<bool>("enable-high-priority")) {
+    // 1. Tell Windows to prioritize the Geometry Dash process
+    SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+    SetProcessPriorityBoost(GetCurrentProcess(), FALSE);
+
+    // 2. Tell the Windows Scheduler to heavily protect the Main Thread from
+    // being preempted
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+  }
 #endif
 }

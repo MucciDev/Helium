@@ -1,5 +1,11 @@
 # Changelog
 
+## [v2.3.0]
+
+### Added
+- **Batch Node Preallocation:** Added a memory anti-fragmentation hook for `CCSpriteBatchNode` that forces a high initial capacity, significantly reducing CPU spikes during level loading and object generation.
+- **Background Throttling:** The engine will now drop to 5 FPS to conserve CPU and GPU power when Geometry Dash is minimized or alt-tabbed in the background.
+
 ## [v2.2.0]
 
 ### Added
